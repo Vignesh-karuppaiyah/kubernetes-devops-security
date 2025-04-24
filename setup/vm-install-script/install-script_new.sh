@@ -22,10 +22,12 @@ systemctl start docker
 # Add docker group if missing
 groupadd docker || true
 
-# Kubernetes repo setup
+# FIXED: Kubernetes repo setup (2025-compatible)
+rm -f /etc/apt/sources.list.d/kubernetes.list
 curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
 
-echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" \
+  > /etc/apt/sources.list.d/kubernetes.list
 
 apt-get update
 
@@ -58,11 +60,9 @@ systemctl enable kubelet
 
 echo ".........----------------#### INITIALIZING KUBERNETES ####----------------........."
 
-# Clean up old config
 rm -rf $HOME/.kube
 kubeadm reset -f
 
-# Init Kubernetes
 kubeadm init --kubernetes-version=${KUBE_VERSION} \
   --pod-network-cidr=10.32.0.0/12 \
   --skip-token-print
@@ -71,11 +71,9 @@ mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
 
-# Deploy weave network
 kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
 sleep 60
 
-# Untaint control plane node
 kubectl taint nodes --all node-role.kubernetes.io/master- || true
 kubectl taint nodes --all node.kubernetes.io/not-ready- || true
 
@@ -93,7 +91,6 @@ mkdir -p /opt/jenkins
 cd /opt/jenkins
 wget https://get.jenkins.io/war-stable/2.426.1/jenkins.war
 
-# Run Jenkins in background
 nohup java -jar jenkins.war --httpPort=8080 &
 
 echo "Jenkins started. Access it via: http://<your_vm_dns>:8080"
